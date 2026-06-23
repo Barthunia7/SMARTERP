@@ -4,8 +4,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
+const authMiddleware = require('./middleware/auth');
 const app = express();
 const PORT = process.env.PORT || 5000;
+
 
 app.use(express.json());
 
@@ -73,6 +75,21 @@ app.get('/api/test-db', async (req, res) => {
     res.status(500).send("Database connection failed.");
   }
 });
+
+// ROUTE 3: PROTECTED USER PROFILE
+app.get('/api/profile', authMiddleware, async (req, res) => {
+  try {
+    const userResult = await pool.query('SELECT id, username, email, created_at FROM users WHERE id = $1', [req.user.id]);
+    res.json({ 
+      message: "Welcome to your protected SmartERP Dashboard!", 
+      user: userResult.rows[0] 
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server profile fetching error");
+  }
+});
+
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
