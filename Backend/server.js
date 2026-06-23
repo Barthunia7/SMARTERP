@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
+
 const authMiddleware = require('./middleware/auth');
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -90,6 +91,9 @@ app.get('/api/profile', authMiddleware, async (req, res) => {
   }
 });
 
+app.use('/api/ledgers', require('./routes/ledgers'));
+app.use('/api/items', require('./routes/items'));
+app.use('/api/companies', require('./routes/companies'));
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
