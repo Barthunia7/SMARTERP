@@ -1,26 +1,26 @@
 import React, { useState, useEffect } from 'react';
 
-// 1. Define the Tally Menu Structure
+// 1. Define the Updated Tally Menu Structure including Day 8 Master & Report nodes
 const MENU_ITEMS = [
-  
-
   { label: "Masters", type: "section" },
   { label: "Create Ledger", type: "item", link: "/ledgers/create", key: "L" },
-   { label: "Create Group", type: "item", link: "/groups/create", key: "G" }, 
+  { label: "Create Group", type: "item", link: "/groups/create", key: "G" }, 
+  { label: "Create Stock Item", type: "item", link: "/stock/create", key: "I" }, // Added for Inventory Create
   { label: "Alter Company", type: "item", link: "/company/alter", key: "A" },
   { label: "Transactions", type: "section" },
   { label: "Accounting Vouchers", type: "item", link: "/vouchers", key: "V" },
   { label: "Reports", type: "section" },
   { label: "Balance Sheet", type: "item", link: "/reports/balance-sheet", key: "B" },
   { label: "Profit & Loss A/c", type: "item", link: "/reports/pl", key: "P" },
-  { label: "Quit", type: "item", link: "/quit", key: "Q" }
+  { label: "Stock Summary", type: "item", link: "/reports/stock-summary", key: "S" }, // Added for Inventory Dashboard
+  { label: "Quit", type: "item", link: "/quit", key: "Q" },
+  { label: "Create UOM", type: "item", link: "/uoms/create", key: "U" }
 ];
 
 export default function GatewayDashboard(props) {
  
   // Active company state (replace with your global state or routing parameters if applicable)
   const currentCompanyId = localStorage.getItem('activeCompanyId') || '1'; 
-
 
   const [dashboardData, setDashboardData] = useState({
     companyName: "Loading...",
@@ -91,17 +91,34 @@ export default function GatewayDashboard(props) {
         props.onNavigateToCreateLedger();
       }
     } 
-    // 🟩 ADDED ROUTE HOOK FOR GROUP CREATION
     else if (link === '/groups/create') {
       if (props.onNavigateToCreateGroup) {
         props.onNavigateToCreateGroup();
       }
     } 
+    // 🟩 DAY 8: ROUTE HOOK FOR STOCK ITEM CREATION
+    else if (link === '/stock/create') {
+      if (props.onNavigateToCreateStock) {
+        props.onNavigateToCreateStock();
+      }
+    }
+    // 🟩 DAY 8: ROUTE HOOK FOR STOCK SUMMARY DASHBOARD
+    else if (link === '/reports/stock-summary') {
+      if (props.onNavigateToStockDashboard) {
+        props.onNavigateToStockDashboard();
+      }
+    }
     else if (link === '/quit') {
       alert("Quitting SmartERP...");
     }
-  };
+        // 🟩 DAY 8: ROUTE HOOK FOR UOM CREATION PANEL
+    else if (link === '/uoms/create') {
+      if (props.onNavigateToCreateUom) {
+        props.onNavigateToCreateUom();
+      }
+    }
 
+  };
 
   return (
     <div style={{ display: 'flex', backgroundColor: '#e2f0d9', height: '100vh', fontFamily: 'monospace', padding: '20px' }}>
@@ -140,7 +157,7 @@ export default function GatewayDashboard(props) {
                   style={{ 
                     padding: '5px 30px', 
                     backgroundColor: isActive ? '#ffc000' : 'transparent', 
-                    color: isActive ? '#000' : '#000',
+                    color: '#000',
                     cursor: 'pointer',
                     fontWeight: isActive ? 'bold' : 'normal'
                   }}

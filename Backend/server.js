@@ -2,24 +2,27 @@ const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const cors = require('cors'); 
 require('dotenv').config();
 
 const authMiddleware = require('./middleware/auth');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+app.use(cors());
 app.use(express.json());
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
-// 🟩 DAY 6 AUTOMATIC DATABASE STRUCTURAL SYNC
+
+// 🟩 UPDATED AUTOMATIC DATABASE STRUCTURAL SYNC FOR DAY 8
 const syncDatabaseSchema = async () => {
   try {
     console.log("Checking NeonDB schema compliance...");
     await pool.query(`ALTER TABLE ledgers DROP CONSTRAINT IF EXISTS ledgers_group_type_check;`);
 
-    // 1. Create table safely if it was dropped or completely empty
+    // 1. Create Ledgers Table Safely
     await pool.query(`
       CREATE TABLE IF NOT EXISTS ledgers (
         id SERIAL PRIMARY KEY,
@@ -31,12 +34,12 @@ const syncDatabaseSchema = async () => {
       );
     `);
    
-    // 2. Automatically inject missing fields one by one if they don't exist
+    // Inject missing columns
     await pool.query(`ALTER TABLE ledgers ADD COLUMN IF NOT EXISTS state VARCHAR(100) DEFAULT 'Delhi';`);
     await pool.query(`ALTER TABLE ledgers ADD COLUMN IF NOT EXISTS gstin VARCHAR(15);`);
     await pool.query(`ALTER TABLE ledgers ADD COLUMN IF NOT EXISTS current_balance NUMERIC(15, 2) DEFAULT 0.00;`);
     
-        // 🟩 DAY 7: ACCOUNTING GROUPS TABLE
+    // 2. DAY 7: Accounting Groups Table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS accounting_groups (
         id SERIAL PRIMARY KEY,
@@ -48,12 +51,42 @@ const syncDatabaseSchema = async () => {
       );
     `);
 
-    console.log("🚀 NeonDB verified: 'ledgers' table is 100% compliant with your custom columns!");
-  } catch (err) {
-    console.error("❌ Schema sync failed:", err.message);
+    // 🟩 3. DAY 8: Units of Measure (UOM) Table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS uoms (
+        id SERIAL PRIMARY KEY,
+        company_id INT NOT NULL,
+        symbol VARCHAR(10) NOT NULL,
+        formal_name VARCHAR(50),
+        CONSTRAINT unique_company_uom UNIQUE (company_id, symbol)
+      );
+    `);
+
+    // 🟩 4. DAY 8: Stock Items Table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS stock_items (
+        id SERIAL PRIMARY KEY,
+        company_id INT NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        sku VARCHAR(50),
+        purchase_price NUMERIC(12, 2) DEFAULT 0.00,
+        selling_price NUMERIC(12, 2) DEFAULT 0.00,
+        quantity INT DEFAULT 0,
+        gst_percentage NUMERIC(5, 2) DEFAULT 0.00,
+        uom_id INT REFERENCES uoms(id) ON DELETE SET NULL,
+        CONSTRAINT unique_company_stock_name UNIQUE (company_id, name),
+        CONSTRAINT unique_company_stock_sku UNIQUE (company_id, sku)
+      );
+    `);
+
+    console.log("🚀 NeonDB verified: All tables (including Day 8 Inventory) are 100% compliant!");
+  }   catch (err) {
+    // 🟩 Change this line to print the full error detail
+    console.error("❌ Schema sync failed:", err); 
   }
 };
 syncDatabaseSchema();
+
 
 // ROUTE 1: USER REGISTRATION
 app.post('/api/register', async (req, res) => {
@@ -134,6 +167,8 @@ app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/ledgers', require('./routes/ledgers'));
 app.use('/api/items', require('./routes/items'));
 app.use('/api/groups', require('./routes/groups'));
+
+app.use('/', require('./routes/stockRoutes')); 
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
