@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 
 // 1. Define the Tally Menu Structure
 const MENU_ITEMS = [
+  
+
   { label: "Masters", type: "section" },
   { label: "Create Ledger", type: "item", link: "/ledgers/create", key: "L" },
+   { label: "Create Group", type: "item", link: "/groups/create", key: "G" }, 
   { label: "Alter Company", type: "item", link: "/company/alter", key: "A" },
   { label: "Transactions", type: "section" },
   { label: "Accounting Vouchers", type: "item", link: "/vouchers", key: "V" },
@@ -87,10 +90,18 @@ export default function GatewayDashboard(props) {
       if (props.onNavigateToCreateLedger) {
         props.onNavigateToCreateLedger();
       }
-    } else if (link === '/quit') {
+    } 
+    // 🟩 ADDED ROUTE HOOK FOR GROUP CREATION
+    else if (link === '/groups/create') {
+      if (props.onNavigateToCreateGroup) {
+        props.onNavigateToCreateGroup();
+      }
+    } 
+    else if (link === '/quit') {
       alert("Quitting SmartERP...");
     }
   };
+
 
   return (
     <div style={{ display: 'flex', backgroundColor: '#e2f0d9', height: '100vh', fontFamily: 'monospace', padding: '20px' }}>

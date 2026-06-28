@@ -30,11 +30,23 @@ const syncDatabaseSchema = async () => {
         CONSTRAINT unique_company_ledger UNIQUE (company_id, name)
       );
     `);
-
+   
     // 2. Automatically inject missing fields one by one if they don't exist
     await pool.query(`ALTER TABLE ledgers ADD COLUMN IF NOT EXISTS state VARCHAR(100) DEFAULT 'Delhi';`);
     await pool.query(`ALTER TABLE ledgers ADD COLUMN IF NOT EXISTS gstin VARCHAR(15);`);
     await pool.query(`ALTER TABLE ledgers ADD COLUMN IF NOT EXISTS current_balance NUMERIC(15, 2) DEFAULT 0.00;`);
+    
+        // 🟩 DAY 7: ACCOUNTING GROUPS TABLE
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS accounting_groups (
+        id SERIAL PRIMARY KEY,
+        company_id INT REFERENCES companies(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        parent_group VARCHAR(255) DEFAULT 'Primary',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT unique_company_group UNIQUE (company_id, name)
+      );
+    `);
 
     console.log("🚀 NeonDB verified: 'ledgers' table is 100% compliant with your custom columns!");
   } catch (err) {
@@ -116,11 +128,12 @@ app.get('/api/profile', authMiddleware, async (req, res) => {
   }
 });
 
-// MODULE ROUTES (Day 4, 5, and 6)
+// MODULE ROUTES (Day 4, 5, 6 and 7)
 app.use('/api/companies', require('./routes/companies'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/ledgers', require('./routes/ledgers'));
 app.use('/api/items', require('./routes/items'));
+app.use('/api/groups', require('./routes/groups'));
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
