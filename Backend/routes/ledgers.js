@@ -1,35 +1,40 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+const pool = require('../db'); // Reuse central db instance to save memory connections
 const auth = require('../middleware/auth');
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-
-// 1. CREATE A LEDGER
+// 1. CREATE A LEDGER (Optimized fallback for base NeonDB schemas)
 router.post('/', auth, async (req, res) => {
-  const { name, group_type, phone, email, opening_balance } = req.body;
+  const { company_id, name, group_type, opening_balance, gstin, state } = req.body;
   
-  if (!name || !group_type) {
-    return res.status(400).json({ error: "Name and group_type fields are strictly required." });
+  if (!name || !group_type || !company_id) {
+    return res.status(400).json({ error: "Name, group_type, and company_id fields are strictly required." });
   }
 
   try {
+    // 🟩 Removed current_balance column dependency entirely from this insert statement
     const newLedger = await pool.query(
-      `INSERT INTO ledgers (user_id, name, group_type, phone, email, opening_balance) 
+      `INSERT INTO ledgers (company_id, name, group_type, opening_balance, gstin, state) 
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [req.user.id, name, group_type, phone, email, opening_balance || 0.00]
+      [company_id, name, group_type, opening_balance || 0.00, gstin, state]
     );
-    res.status(201).json({ message: "Ledger created successfully!", ledger: newLedger.rows[0] });
+    res.status(201).json({ message: "Ledger created successfully!", ledger: newLedger.rows });
   } catch (err) {
+    console.error("❌ NeonDB Insert Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// 2. GET ALL LEDGERS FOR LOGGED IN USER
-router.get('/', auth, async (req, res) => {
+
+// 2. GET ALL LEDGERS FOR A SPECIFIC COMPANY
+router.get('/:companyId', auth, async (req, res) => {
+  const { companyId } = req.params;
   try {
-    const userLedgers = await pool.query('SELECT * FROM ledgers WHERE user_id = $1 ORDER BY id DESC', [req.user.id]);
-    res.json(userLedgers.rows);
+    const companyLedgers = await pool.query(
+      'SELECT * FROM ledgers WHERE company_id = $1 ORDER BY name ASC', 
+      [companyId]
+    );
+    res.json(companyLedgers.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

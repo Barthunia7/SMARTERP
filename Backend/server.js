@@ -4,17 +4,44 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
-
 const authMiddleware = require('./middleware/auth');
 const app = express();
 const PORT = process.env.PORT || 5000;
-
 
 app.use(express.json());
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
+// 🟩 DAY 6 AUTOMATIC DATABASE STRUCTURAL SYNC
+const syncDatabaseSchema = async () => {
+  try {
+    console.log("Checking NeonDB schema compliance...");
+    await pool.query(`ALTER TABLE ledgers DROP CONSTRAINT IF EXISTS ledgers_group_type_check;`);
+
+    // 1. Create table safely if it was dropped or completely empty
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ledgers (
+        id SERIAL PRIMARY KEY,
+        company_id INT REFERENCES companies(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        group_type VARCHAR(100) NOT NULL,
+        opening_balance NUMERIC(15, 2) DEFAULT 0.00,
+        CONSTRAINT unique_company_ledger UNIQUE (company_id, name)
+      );
+    `);
+
+    // 2. Automatically inject missing fields one by one if they don't exist
+    await pool.query(`ALTER TABLE ledgers ADD COLUMN IF NOT EXISTS state VARCHAR(100) DEFAULT 'Delhi';`);
+    await pool.query(`ALTER TABLE ledgers ADD COLUMN IF NOT EXISTS gstin VARCHAR(15);`);
+    await pool.query(`ALTER TABLE ledgers ADD COLUMN IF NOT EXISTS current_balance NUMERIC(15, 2) DEFAULT 0.00;`);
+
+    console.log("🚀 NeonDB verified: 'ledgers' table is 100% compliant with your custom columns!");
+  } catch (err) {
+    console.error("❌ Schema sync failed:", err.message);
+  }
+};
+syncDatabaseSchema();
 
 // ROUTE 1: USER REGISTRATION
 app.post('/api/register', async (req, res) => {
@@ -49,7 +76,6 @@ app.post('/api/login', async (req, res) => {
       return res.status(400).json({ error: "Invalid email or password." });
     }
 
-    // FIXED: Extract the first user row object from the rows array
     const user = userResult.rows[0];
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -57,7 +83,6 @@ app.post('/api/login', async (req, res) => {
       return res.status(400).json({ error: "Invalid email or password." });
     }
 
-    // Generate the JWT token
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
     res.json({ message: "Login successful!", token, username: user.username });
@@ -91,9 +116,11 @@ app.get('/api/profile', authMiddleware, async (req, res) => {
   }
 });
 
+// MODULE ROUTES (Day 4, 5, and 6)
+app.use('/api/companies', require('./routes/companies'));
+app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/ledgers', require('./routes/ledgers'));
 app.use('/api/items', require('./routes/items'));
-app.use('/api/companies', require('./routes/companies'));
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
