@@ -196,6 +196,8 @@ app.use('/', require('./routes/ledgerRoutes'));
 app.use('/', require('./routes/voucherRoutes'));
 // 🟩 MOUNT DAY 9 CORE LEDGERS SEEDER ROUTE
 app.use('/', require('./routes/seedRoutes'));
+app.use('/', require('./routes/itemSearchRoutes'));
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
