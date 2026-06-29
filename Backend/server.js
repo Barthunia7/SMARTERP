@@ -78,10 +78,33 @@ const syncDatabaseSchema = async () => {
         CONSTRAINT unique_company_stock_sku UNIQUE (company_id, sku)
       );
     `);
+      // 🟩 DAY 9: Parent Voucher Header Table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS vouchers (
+        id SERIAL PRIMARY KEY,
+        company_id INT NOT NULL,
+        voucher_number VARCHAR(100) NOT NULL,
+        voucher_type VARCHAR(50) NOT NULL, -- CONTRA, PAYMENT, RECEIPT, JOURNAL, PURCHASE, SALES
+        date DATE NOT NULL DEFAULT CURRENT_DATE,
+        narration TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT unique_company_voucher UNIQUE (company_id, voucher_type, voucher_number)
+      );
+    `);
 
-    console.log("🚀 NeonDB verified: All tables (including Day 8 Inventory) are 100% compliant!");
-  }   catch (err) {
-    // 🟩 Change this line to print the full error detail
+    // 🟩 DAY 9: Child Voucher Entries Split Ledger Matrix Table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS voucher_entries (
+        id SERIAL PRIMARY KEY,
+        voucher_id INT REFERENCES vouchers(id) ON DELETE CASCADE,
+        ledger_id INT REFERENCES ledgers(id) ON DELETE RESTRICT,
+        entry_type VARCHAR(2) NOT NULL, -- 'DR' (Debit) or 'CR' (Credit)
+        amount NUMERIC(15, 2) NOT NULL CHECK (amount > 0)
+      );
+    `);
+
+    console.log("🚀 NeonDB verified: Day 9 Accounting Voucher tables are 100% compliant!");
+      }  catch (err) {
     console.error("❌ Schema sync failed:", err); 
   }
 };
@@ -161,15 +184,18 @@ app.get('/api/profile', authMiddleware, async (req, res) => {
   }
 });
 
-// MODULE ROUTES (Day 4, 5, 6 and 7)
+// MODULE ROUTES (Day 4, 5, 6 ,7 and 8)
 app.use('/api/companies', require('./routes/companies'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/ledgers', require('./routes/ledgers'));
 app.use('/api/items', require('./routes/items'));
 app.use('/api/groups', require('./routes/groups'));
-
 app.use('/', require('./routes/stockRoutes')); 
-
+app.use('/', require('./routes/ledgerRoutes'));
+// 🟩 DAY 9: MOUNT DOUBLE-ENTRY VOUCHER ROUTER
+app.use('/', require('./routes/voucherRoutes'));
+// 🟩 MOUNT DAY 9 CORE LEDGERS SEEDER ROUTE
+app.use('/', require('./routes/seedRoutes'));
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

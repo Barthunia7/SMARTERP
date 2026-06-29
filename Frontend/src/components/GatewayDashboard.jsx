@@ -29,16 +29,40 @@ export default function GatewayDashboard(props) {
 
   // Track keyboard selection index (Start at the first 'item', index 1)
   const [selectedIndex, setSelectedIndex] = useState(1);
-
-  // Fetch backend API data
+  
+   // Fetch backend API dashboard metrics safely
   useEffect(() => {
-    fetch(`/api/dashboard/${currentCompanyId}`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    const token = localStorage.getItem('token');
+    
+    // 🟩 SHUT DOWN THE FETCH ROUTINE IMMEDIATELY IF NO SECURITY TOKEN EXISTS
+    if (!token) {
+      console.warn("No token detected. Using local simulation profile fallback.");
+      setDashboardData({ 
+        companyName: "Demo Company Pvt Ltd", 
+        lastVoucherDate: "No Vouchers Logged" 
+      });
+      return; 
+    }
+
+    // This fetch will now ONLY execute when a token is actually available!
+    fetch(`http://localhost:5000/api/dashboard/${currentCompanyId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
     })
-    .then(res => res.json())
+    .then(res => {
+      if (res.status === 401) {
+        return { companyName: "Demo Company Pvt Ltd", lastVoucherDate: "No Vouchers Logged" };
+      }
+      return res.json();
+    })
     .then(data => setDashboardData(data))
-    .catch(err => console.error("Error loading dashboard metrics:", err));
+    .catch(err => {
+      console.error("Error loading dashboard metrics:", err);
+      setDashboardData({ companyName: "Demo Company Pvt Ltd", lastVoucherDate: "Offline" });
+    });
   }, [currentCompanyId]);
+
 
   // Handle Keyboard Navigation (Arrow Keys, Enter, and Hotkeys)
   useEffect(() => {
@@ -115,6 +139,12 @@ export default function GatewayDashboard(props) {
     else if (link === '/uoms/create') {
       if (props.onNavigateToCreateUom) {
         props.onNavigateToCreateUom();
+      }
+    }
+    // 🟩 DAY 9: ROUTE HOOK FOR CORE TRANSACTION VOUCHERS PANEL
+    else if (link === '/vouchers') {
+      if (props.onNavigateToCreateVoucher) {
+        props.onNavigateToCreateVoucher();
       }
     }
 

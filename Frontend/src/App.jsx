@@ -4,9 +4,8 @@ import LedgerCreate from './components/LedgerCreate';
 import GroupCreate from './components/GroupCreate';
 import StockCreate from './components/stockCreate';
 import StockDashboard from './components/StockDashboard';
-// 🟩 IMPORT THE NEW UOM MODULE
 import UomCreate from './components/UomCreate';
-
+import VoucherCreate from './components/VoucherCreate';
 export default function App() {
   const [currentView, setCurrentView] = useState('DASHBOARD');
   
@@ -33,6 +32,9 @@ export default function App() {
   if (currentView === 'UOM_CREATE') {
     return <UomCreate companyId={activeCompanyId} onBack={() => setCurrentView('DASHBOARD')} />;
   }
+if (currentView === 'VOUCHER_CREATE') {
+    return <VoucherCreate companyId={activeCompanyId} onBack={() => setCurrentView('DASHBOARD')} />;
+  }
 
   return (
     <GatewayDashboard
@@ -41,6 +43,7 @@ export default function App() {
       onNavigateToCreateStock={() => setCurrentView('STOCK_CREATE')}
       onNavigateToStockDashboard={() => setCurrentView('STOCK_DASHBOARD')}
       onNavigateToCreateUom={() => setCurrentView('UOM_CREATE')}
+       onNavigateToCreateVoucher={() => setCurrentView('VOUCHER_CREATE')}
     />
   );
 }
