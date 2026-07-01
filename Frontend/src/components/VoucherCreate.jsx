@@ -1,4 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
+// 🟩 DAY 11: IMPORT THE MULTI-DOCUMENT BILLING SUITE MODAL
+import InvoiceBill from './InvoiceBill';
 
 export default function VoucherCreate({ companyId, onBack }) {
   // Core Form Input references
@@ -19,6 +21,9 @@ export default function VoucherCreate({ companyId, onBack }) {
   const [inventoryRows, setInventoryRows] = useState([
     { stock_item_id: '', name: '', sku: '', quantity: '', rate: '', total_amount: 0 }
   ]);
+
+  // 🟩 DAY 11: BILLING PAYLOAD RETENTION OVERLAY TRACKER STATE
+  const [activeBillPayload, setActiveBillPayload] = useState(null);
 
   // Dropdown UI tracking states for accounts particulars
   const [focusedRowIndex, setFocusedRowIndex] = useState(null);
@@ -61,6 +66,7 @@ export default function VoucherCreate({ companyId, onBack }) {
       .then(data => setSearchResults(data))
       .catch(err => console.error("Error looking up ledger entries:", err));
   };
+
   // DAY 10: FETCH INVENTORY STOCK ITEMS FOR AUTOCOMPLETE ITEMS SEARCH GRID
   const handleItemInputChange = (index, searchString) => {
     const updatedInv = [...inventoryRows];
@@ -95,7 +101,6 @@ export default function VoucherCreate({ companyId, onBack }) {
     updatedRows[index][field] = value;
     setRows(updatedRows);
   };
-
   const handleCellKeyDown = (e, rowIndex, field) => {
     if (e.key === 'ArrowDown' && field === 'ledger_name' && searchResults.length > 0) {
       e.preventDefault(); setSelectedListIndex((prev) => (prev + 1) % searchResults.length);
@@ -197,13 +202,19 @@ export default function VoucherCreate({ companyId, onBack }) {
     setInventoryRows(updated); setItemSearchResults([]); setFocusedInvIndex(null);
     document.getElementById(`inv-qty-${index}`).focus();
   };
-  const handleSubmit = async () => {
+   const handleSubmit = async () => {
     const cleanEntries = rows.filter(r => r.ledger_id && parseFloat(r.amount) > 0).map(r => ({
       ledger_id: parseInt(r.ledger_id), entry_type: r.entry_type, amount: parseFloat(r.amount)
     }));
 
-    const cleanInventory = inventoryRows.filter(r => r.stock_item_id && parseInt(r.quantity) > 0).map(r => ({
-      stock_item_id: parseInt(r.stock_item_id), quantity: parseInt(r.quantity), rate: parseFloat(r.rate)
+    // 🟩 FIXED: Filter by name and quantity so typed entries are retained!
+    const cleanInventory = inventoryRows.filter(r => r.name.trim() !== '' && parseInt(r.quantity) > 0).map(r => ({
+      stock_item_id: parseInt(r.stock_item_id) || 1, // Fallback placeholder ID if unselected
+      name: r.name,
+      sku: r.sku || "N/A",
+      quantity: parseInt(r.quantity),
+      rate: parseFloat(r.rate),
+      total_amount: parseFloat(r.total_amount) || (parseInt(r.quantity) * parseFloat(r.rate))
     }));
 
     if (cleanEntries.length < 2) { alert("A valid voucher requires at least two balanced accounts!"); return; }
@@ -228,11 +239,20 @@ export default function VoucherCreate({ companyId, onBack }) {
       if (!res.ok) throw new Error(data.error);
 
       alert('Sales Voucher saved and items stock deducted successfully!');
-      onBack();
+      
+      if (voucherType === 'SALES') {
+        setActiveBillPayload({
+          voucher_number: vNumRef.current.value || "0872",
+          voucher_type: voucherType,
+          date: dateRef.current.value,
+          inventory_items: cleanInventory // 🟩 Pass the complete clean inventory list directly to bill template
+        });
+      } else {
+        onBack();
+      }
     } catch (err) { alert(`Submission failed: ${err.message}`); }
   };
 
-    // 🟩 FIXED: Unbroken mathematical reduce execution loop
   const totalInvoiceValue = inventoryRows.reduce((sum, r) => sum + (parseFloat(r.total_amount) || 0), 0);
 
   return (
@@ -254,7 +274,6 @@ export default function VoucherCreate({ companyId, onBack }) {
           <label>Voucher No: </label>
           <input ref={vNumRef} type="text" placeholder="0001" onKeyDown={(e) => { if(e.key === 'Enter') document.getElementById('type-0').focus(); }} />
         </div>
-
         <h4 style={{ color: '#385723', marginBottom: '5px', marginTop: '20px' }}>Accounts Particulars</h4>
         <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #ccc' }}>
           <thead>
@@ -286,7 +305,7 @@ export default function VoucherCreate({ companyId, onBack }) {
           </tbody>
         </table>
 
-        {/* SECTION B: ITEMISED SALES INVENTORY SPREADSHEET VIEW */}
+        {/* DYNAMIC ITEMISED SALES INVENTORY SPREADSHEET ROW ALLOCATOR */}
         {voucherType === 'SALES' && (
           <div style={{ marginTop: '25px' }}>
             <h4 style={{ color: '#b26b00', marginBottom: '5px' }}>Inventory Items Particulars (Stock Deduction Matrix)</h4>
@@ -304,7 +323,7 @@ export default function VoucherCreate({ companyId, onBack }) {
                 {inventoryRows.map((inv, index) => (
                   <tr key={index} style={{ borderBottom: '1px solid #eee', verticalAlign: 'top' }}>
                     <td style={{ padding: '6px', position: 'relative' }}>
-                      <input id={`inv-item-${index}`} type="text" placeholder="Type stock item name... (e.g. gdg)" value={inv.name} onChange={(e) => handleItemInputChange(index, e.target.value)} onKeyDown={(e) => handleInvKeyDown(e, index, 'name')} onBlur={() => setTimeout(() => setFocusedInvIndex(null), 200)} style={{ width: '95%', padding: '2px' }} autoComplete="off" />
+                      <input id={`inv-item-${index}`} type="text" placeholder="Type stock item name... (e.g. biscuit)" value={inv.name} onChange={(e) => handleItemInputChange(index, e.target.value)} onKeyDown={(e) => handleInvKeyDown(e, index, 'name')} onBlur={() => setTimeout(() => setFocusedInvIndex(null), 200)} style={{ width: '95%', padding: '2px' }} autoComplete="off" />
                       {focusedInvIndex === index && itemSearchResults.length > 0 && (
                         <div style={{ position: 'absolute', left: '6px', top: '28px', width: '94%', border: '1px solid #b26b00', backgroundColor: '#fff', zIndex: 1000 }}>
                           {itemSearchResults.map((item, sIdx) => (
@@ -333,6 +352,18 @@ export default function VoucherCreate({ companyId, onBack }) {
           <p style={{ margin: '5px 0 0 0', fontSize: '11px', color: '#666' }}>💡 Press <b>Ctrl + Enter</b> inside Narration to save your Sales Voucher.</p>
         </div>
       </div>
+
+      {/* 🟩 DAY 11 INTEGRATED MULTI-DOCUMENT INVOICE BILLING SUITE POPUP */}
+      {activeBillPayload && (
+        <InvoiceBill 
+          voucherData={activeBillPayload} 
+          companyName="Demo Company Pvt Ltd" 
+          onClose={() => {
+            setActiveBillPayload(null);
+            onBack();
+          }}
+        />
+      )}
     </div>
   );
 }
