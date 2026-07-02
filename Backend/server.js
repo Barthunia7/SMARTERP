@@ -197,6 +197,8 @@ app.use('/', require('./routes/voucherRoutes'));
 // 🟩 MOUNT DAY 9 CORE LEDGERS SEEDER ROUTE
 app.use('/', require('./routes/seedRoutes'));
 app.use('/', require('./routes/itemSearchRoutes'));
+// DAY 12: MOUNT SYSTEM REPORTS MODULE PIPELINES 
+app.use('/', require('./routes/reportsModuleRoutes'));
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
